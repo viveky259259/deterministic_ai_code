@@ -1,0 +1,95 @@
+spec: component
+name: DriftDetector
+version: "1.0.0"
+layer: L5
+module: src.core.drift_detector
+
+description: >
+  Compares the content_hash of each implementation against a session-scoped
+  map. If the same intent_key produces a different hash within the same
+  session, raises DETERMINISM_VIOLATION. Never swallow, never log-and-continue.
+
+input:
+  type: ParsedSections
+  additional:
+    - intent_key: str
+    - content_hash: str
+
+output:
+  type: DeterministicResult
+  description: "On success. On drift, raises RuntimeError."
+
+dependencies:
+  contracts: [ParsedSections, DeterministicResult]
+
+session_map:
+  type: "dict[str, str]"
+  key: "MD5(canonical_verb + canonical_noun + language + intent_type)"
+  value: "SHA-256[:16] of implementation block"
+  scope: "Single DeterministicCodeAgent instance lifetime"
+  persistence: "Not persisted — each session starts fresh"
+
+methods:
+  - name: check
+    signature: "def check(self, intent_key: str, content_hash: str) -> None"
+    description: "Compare hash against session map, raise on mismatch"
+    steps:
+      - "If intent_key not in session_map → store and return"
+      - "If intent_key in session_map AND hash matches → return"
+      - "If intent_key in session_map AND hash differs → raise RuntimeError"
+
+  - name: compute_intent_key
+    signature: "def compute_intent_key(self, verb: str, noun: str, language: str, intent_type: str) -> str"
+    description: "Compute the session map key from classification components"
+    logic: "hashlib.md5(f'{verb}:{noun}:{language}:{intent_type}'.encode()).hexdigest()"
+
+  - name: reset
+    signature: "def reset(self) -> None"
+    description: "Clear the session map (for testing)"
+
+violation_protocol:
+  error_type: RuntimeError
+  message_template: |
+    DETERMINISM_VIOLATION
+      intent_key: {intent_key}
+      expected:   {expected_hash}
+      received:   {actual_hash}
+      Investigate before re-running.
+  propagation: "Never caught in adapter or orchestrator — propagates to caller"
+  forbidden_responses:
+    - "Silently accepting the new hash"
+    - "Averaging or merging hashes"
+    - "Logging and continuing"
+
+hash_stability_guarantee:
+  within_session: "Identical for same intent_key"
+  across_sessions: "Identical on same model version"
+  across_synonyms: "Identical after normalisation"
+  across_model_upgrades: "MAY differ — triggers regression suite"
+
+acceptance_tests:
+  - name: test_first_occurrence_stores
+    input: {intent_key: "abc123", content_hash: "deadbeef12345678"}
+    assert: "No error, hash stored in session_map"
+
+  - name: test_same_hash_passes
+    setup: {session_map: {"abc123": "deadbeef12345678"}}
+    input: {intent_key: "abc123", content_hash: "deadbeef12345678"}
+    assert: "No error"
+
+  - name: test_different_hash_raises
+    setup: {session_map: {"abc123": "deadbeef12345678"}}
+    input: {intent_key: "abc123", content_hash: "cafebabe87654321"}
+    assert: "raises RuntimeError('DETERMINISM_VIOLATION')"
+
+  - name: test_violation_not_caught
+    assert: "RuntimeError propagates to caller, not caught internally"
+
+  - name: test_reset_clears_map
+    setup: {session_map: {"abc123": "deadbeef12345678"}}
+    action: "reset()"
+    assert: "session_map is empty"
+
+  - name: test_intent_key_computation
+    input: {verb: "add", noun: "Total", language: "javascript", intent_type: "PURE_FUNCTION"}
+    assert: "intent_key == MD5('add:Total:javascript:PURE_FUNCTION')"

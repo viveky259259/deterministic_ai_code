@@ -1,0 +1,110 @@
+spec: component
+name: SchemaParser
+version: "1.0.0"
+layer: L5
+module: src.core.schema_parser
+
+description: >
+  Parses raw Claude API output into typed ParsedSections. Validates
+  that all required sections are present and well-formed. Returns None
+  on parse failure to trigger RetryOrchestrator.
+
+input:
+  type: str
+  description: "Raw text output from ClaudeAPIAdapter"
+
+output:
+  type: "ParsedSections | None"
+  description: "Parsed sections on success, None on failure (triggers retry)"
+
+dependencies:
+  contracts: [ParsedSections]
+
+section_delimiter:
+  pattern: "---SECTION_NAME---"
+  regex: 'r"---(\w+)---(.*?)(?=---|\Z)"'
+  flags: [re.DOTALL]
+
+required_sections:
+  - INTENT_CLASSIFICATION
+  - SIGNATURE
+  - IMPLEMENTATION
+  - INVARIANTS
+  - TEST_ORACLE
+
+optional_sections:
+  - DEPENDENCIES
+  - AMBIGUITY
+
+methods:
+  - name: parse
+    signature: "def parse(self, raw_output: str) -> ParsedSections | None"
+    description: "Main entry — parse raw output into validated sections"
+    steps:
+      - "Check for AMBIGUITY section — if present, return special ambiguity marker"
+      - "Extract all sections using regex"
+      - "Validate all required sections are present"
+      - "Extract implementation code (strip fences)"
+      - "Validate implementation block constraints"
+      - "Build and return ParsedSections"
+      - "Return None on any validation failure"
+
+  - name: _extract_sections
+    signature: "def _extract_sections(self, raw: str) -> dict[str, str] | None"
+    description: "Regex-extract all sections from raw output"
+
+  - name: _extract_implementation_code
+    signature: "def _extract_implementation_code(self, raw_impl: str) -> str | None"
+    description: "Strip fences and language tag from implementation block"
+    logic: "re.sub(r'```\\w*\\n?', '', raw_impl).strip()"
+
+  - name: _validate_implementation
+    signature: "def _validate_implementation(self, code: str) -> bool"
+    description: "Validate implementation block constraints"
+    checks:
+      - "Contains no import/require/from...import statements"
+      - "Contains exactly one function definition"
+      - "Contains no comments (unless ASYNC_OPERATION)"
+      - "Contains no fence markers"
+
+parse_failure_conditions:
+  - "Any required section is absent"
+  - "IMPLEMENTATION block contains no fenced code"
+  - "AMBIGUITY section absent but confidence is MEDIUM or LOW"
+  - "More than one fenced code block in IMPLEMENTATION"
+  - "IMPLEMENTATION contains import statements"
+
+hash_computation:
+  input: "Implementation code (fences stripped, whitespace trimmed)"
+  algorithm: "SHA-256"
+  truncation: "First 16 hex characters"
+  code: "hashlib.sha256(code.encode('utf-8')).hexdigest()[:16]"
+
+acceptance_tests:
+  - name: test_valid_output_parses
+    input: "Well-formed output with all 5 sections"
+    assert: "Returns ParsedSections with all fields populated"
+
+  - name: test_missing_section_returns_none
+    input: "Output missing INVARIANTS section"
+    assert: "Returns None"
+
+  - name: test_ambiguity_detected
+    input: "Output containing ---AMBIGUITY--- section"
+    assert: "Returns ambiguity marker"
+
+  - name: test_fences_stripped
+    input: "```javascript\nconst total = ...;\n```"
+    assert: "implementation == 'const total = ...;'"
+
+  - name: test_import_in_impl_returns_none
+    input: "Implementation block containing 'import foo'"
+    assert: "Returns None"
+
+  - name: test_multiple_code_blocks_returns_none
+    input: "Implementation with two ``` blocks"
+    assert: "Returns None"
+
+  - name: test_hash_computation
+    input: "const total = (firstNumber, secondNumber) => firstNumber + secondNumber;"
+    assert: "content_hash == hashlib.sha256(input.encode()).hexdigest()[:16]"

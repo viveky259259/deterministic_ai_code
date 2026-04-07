@@ -1,0 +1,31 @@
+spec: feature
+id: F-07
+name: Ambiguity gate
+version: "1.0.0"
+priority: P0
+category: NORMALISATION
+
+description: >
+  Hard gate between CanonicalClassifier and TemplateBinder.
+  Halts on any confidence < HIGH. Returns AmbiguityBlock (not an exception).
+  No API calls made when halted.
+
+gate_logic:
+  HIGH: "Pass through — pipeline continues to TemplateBinder"
+  MEDIUM: "Halt — return AmbiguityBlock with multi-match context"
+  LOW: "Halt — return AmbiguityBlock with clarifying_question"
+
+components_involved:
+  - AmbiguityGate
+
+acceptance_criteria:
+  - test: "MEDIUM confidence → returns AmbiguityBlock, does NOT call Claude API"
+    type: halt
+  - test: "LOW confidence → returns AmbiguityBlock with clarifying_question"
+    type: halt
+  - test: "HIGH confidence → returns Classification unchanged"
+    type: pass
+  - test: "AmbiguityBlock is NOT an exception — it is a valid return value"
+    type: contract
+  - test: "No API calls made when confidence < HIGH"
+    type: no_side_effects

@@ -1,0 +1,24 @@
+spec: feature
+id: F-15
+name: Retry harness
+version: "1.0.0"
+priority: P0
+category: VALIDATION
+
+description: >
+  Retries Claude API calls on schema validation failure, up to 3 attempts.
+  Appends correction suffix to prompt. Does NOT re-run normalisation
+  or classification.
+
+references:
+  component_spec: "specs/components/retry_orchestrator.yaml"
+
+components_involved:
+  - RetryOrchestrator
+
+acceptance_criteria:
+  - test: "Schema failure on attempt 1 → retries with correction suffix"
+  - test: "Schema failure on all 3 attempts → raises ValueError"
+  - test: "Retry does NOT re-run normalisation or classification"
+  - test: "temperature=0 on all retry API calls"
+  - test: "Success on attempt 2 → returns valid DeterministicResult"

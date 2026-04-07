@@ -1,0 +1,41 @@
+spec: contract
+name: Classification
+version: "1.0.0"
+type: dataclass
+module: src.core.contracts
+
+description: >
+  Output of the CanonicalClassifier. Bundles the intent type, confidence
+  level, normalized intent, and target language. This is the gateway
+  data structure — AmbiguityGate reads confidence to decide halt/proceed.
+
+fields:
+  - name: intent_type
+    type: CanonicalType
+    description: "The classified canonical intent type"
+
+  - name: confidence
+    type: Confidence
+    description: "Classification confidence — HIGH proceeds, MEDIUM/LOW halts"
+
+  - name: normalized
+    type: NormalizedIntent
+    description: "The normalized intent that produced this classification"
+
+  - name: language
+    type: str
+    description: "Target language for code generation"
+    allowed_values: ["javascript", "typescript", "python", "go"]
+    constraints:
+      - "Must be a canonical language name (post-normalisation)"
+      - "Aliases resolved before Classification is created"
+
+tests:
+  - name: test_high_confidence_pure_function
+    input: {verb: "add", noun: "Total", language: "javascript"}
+    assert_type: "result.intent_type == CanonicalType.PURE_FUNCTION"
+    assert_confidence: "result.confidence == Confidence.HIGH"
+
+  - name: test_ambiguous_classification
+    input: {verb: "frobnicate", noun: "Thing"}
+    assert_confidence: "result.confidence == Confidence.LOW"

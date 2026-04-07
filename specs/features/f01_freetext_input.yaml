@@ -1,0 +1,45 @@
+spec: feature
+id: F-01
+name: Free-text intent input
+version: "1.0.0"
+priority: P0
+category: INPUT
+
+description: >
+  Accepts a raw natural language string and routes it into the
+  normalisation pipeline. This is the primary user-facing input method.
+
+input:
+  - name: user_intent
+    type: str
+    description: "Raw natural language intent"
+  - name: language
+    type: str
+    default: "javascript"
+    description: "Target language"
+
+output:
+  type: NormalizedIntent
+  source_tag: "freetext"
+
+processing_rules:
+  - "Strip leading/trailing whitespace"
+  - "Normalise unicode (NFKC)"
+  - "Lowercase before synonym table lookup"
+  - "If input is empty or < 3 chars → raise ValueError('Intent too short')"
+  - "If input contains YAML front matter → route to F-02 (SpecValidator)"
+
+components_involved:
+  - IntentNormalizer
+
+acceptance_criteria:
+  - test: "'write add function' → canonical_verb='add', canonical_noun='Total'"
+    type: happy_path
+  - test: "'CREATE A METHOD TO SUM TWO NUMBERS' → identical to 'write add function' (case-insensitive)"
+    type: case_insensitive
+  - test: "'' → raises ValueError('Intent too short')"
+    type: error
+  - test: "'ab' → raises ValueError('Intent too short')"
+    type: error
+  - test: "'intent: pure_function\\nverb: add' → routed to F-02"
+    type: routing

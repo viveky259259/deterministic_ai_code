@@ -1,0 +1,126 @@
+spec: component
+name: SpecValidator
+version: "1.0.0"
+layer: bypass
+module: src.core.spec_validator
+
+description: >
+  Handles YAML/JSON spec input, bypassing IntentNormalizer and
+  CanonicalClassifier. Validates spec structure and produces a
+  Classification with confidence=HIGH directly. Per Principle P-5,
+  specs are already canonical — synonym collapse is skipped.
+
+input:
+  type: str
+  description: "YAML or JSON string containing a canonical spec"
+
+output:
+  type: Classification
+  description: "Always HIGH confidence — spec is pre-canonical"
+
+dependencies:
+  external: [pyyaml]
+  contracts: [Classification, NormalizedIntent, CanonicalType, Confidence]
+
+spec_schema:
+  required_fields:
+    - name: intent
+      type: str
+      description: "Canonical type name (lowercase)"
+      example: "pure_function"
+    - name: verb
+      type: str
+      description: "Canonical verb (no synonym lookup needed)"
+      example: "add"
+    - name: noun
+      type: str
+      description: "PascalCase domain noun"
+      example: "Total"
+    - name: language
+      type: str
+      description: "Target language"
+      example: "javascript"
+  optional_fields:
+    - name: params
+      type: "list[dict]"
+      description: "Parameter definitions"
+      fields: [name, type]
+    - name: returns
+      type: str
+      description: "Return type"
+
+methods:
+  - name: validate
+    signature: "def validate(self, spec_input: str) -> Classification"
+    description: "Parse and validate spec, return Classification"
+    steps:
+      - "Detect format (YAML or JSON)"
+      - "Parse input"
+      - "Validate all required fields present"
+      - "Map intent string to CanonicalType enum"
+      - "Build NormalizedIntent with source='yaml_spec' or 'json_spec'"
+      - "Return Classification with confidence=HIGH"
+
+  - name: _detect_format
+    signature: "def _detect_format(self, text: str) -> str"
+    description: "Detect whether input is YAML or JSON"
+
+  - name: _validate_fields
+    signature: "def _validate_fields(self, parsed: dict) -> None"
+    description: "Validate all required fields are present and typed correctly"
+    error: "SchemaError('Missing required field: {field}')"
+
+error_conditions:
+  - condition: "Missing required field"
+    action: "raise SchemaError('Missing required field: {field}')"
+  - condition: "Invalid intent type"
+    action: "raise SchemaError('Unknown intent type: {type}')"
+  - condition: "Malformed YAML/JSON"
+    action: "raise SchemaError('Invalid spec format')"
+
+invariants:
+  - "Confidence is ALWAYS HIGH for valid specs"
+  - "Synonym normalisation is NEVER run on spec input"
+  - "Classification produced is identical to what IntentNormalizer+Classifier would produce for the same canonical values"
+
+acceptance_tests:
+  - name: test_valid_yaml_spec
+    input: |
+      intent: pure_function
+      verb: add
+      noun: Total
+      params:
+        - name: firstNumber
+          type: number
+        - name: secondNumber
+          type: number
+      returns: number
+      language: javascript
+    assert: "Classification with type=PURE_FUNCTION, confidence=HIGH"
+
+  - name: test_missing_verb_raises
+    input: |
+      intent: pure_function
+      noun: Total
+      language: javascript
+    assert: "raises SchemaError('Missing required field: verb')"
+
+  - name: test_json_spec
+    input: '{"intent": "predicate", "verb": "validate", "noun": "EvenNumber", "language": "javascript"}'
+    assert: "Classification with type=PREDICATE, confidence=HIGH"
+
+  - name: test_unknown_intent_type
+    input: |
+      intent: unknown_type
+      verb: add
+      noun: Total
+      language: javascript
+    assert: "raises SchemaError('Unknown intent type: unknown_type')"
+
+  - name: test_no_synonym_lookup
+    input: |
+      intent: pure_function
+      verb: sum
+      noun: Total
+      language: javascript
+    assert: "canonical_verb='sum' (NOT normalised to 'add' — spec is canonical)"

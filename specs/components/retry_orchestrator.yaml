@@ -1,0 +1,71 @@
+spec: component
+name: RetryOrchestrator
+version: "1.0.0"
+layer: control
+module: src.core.retry_orchestrator
+
+description: >
+  Controls retry logic when SchemaParser returns None. Re-enters the
+  pipeline at L4 (ClaudeAPIAdapter) with an appended correction suffix.
+  Max 3 attempts. Does NOT re-run normalisation or classification.
+
+input:
+  type: BoundPrompt
+  additional: {max_retries: int, default: 3}
+
+output:
+  type: DeterministicResult
+  description: "On success within retry budget"
+  error: "ValueError after max_retries exhausted"
+
+dependencies:
+  components: [ClaudeAPIAdapter, SchemaParser, DriftDetector]
+  contracts: [BoundPrompt, DeterministicResult]
+
+retry_suffix: >
+  Your previous response did not conform to the required output schema.
+  Reformat strictly. Every required section (INTENT_CLASSIFICATION, SIGNATURE,
+  IMPLEMENTATION, INVARIANTS, TEST_ORACLE) must be present, delimited by ---,
+  with no prose before or after. No alternatives. No explanations.
+
+methods:
+  - name: execute
+    signature: "def execute(self, bound_prompt: BoundPrompt, max_retries: int = 3) -> DeterministicResult"
+    description: "Execute API call with retry loop on schema failures"
+    steps:
+      - "For attempt in range(max_retries):"
+      - "  Call ClaudeAPIAdapter with current prompt"
+      - "  Parse response with SchemaParser"
+      - "  If parsed successfully → run DriftDetector → return result"
+      - "  If parse failed and not last attempt → append retry_suffix to user_message"
+      - "If all attempts fail → raise ValueError"
+
+invariants:
+  - "max_retries is always 3 (not configurable by caller in production)"
+  - "Retry does NOT re-run IntentNormalizer or CanonicalClassifier"
+  - "temperature=0 on ALL retry API calls"
+  - "retry_suffix is appended, not replaced"
+  - "Each attempt is logged with attempt_number"
+
+acceptance_tests:
+  - name: test_success_on_first_attempt
+    mock: "ClaudeAPIAdapter returns valid output"
+    assert: "Returns DeterministicResult, 1 API call made"
+
+  - name: test_retry_on_schema_failure
+    mock: "ClaudeAPIAdapter returns invalid then valid output"
+    assert: "Returns DeterministicResult after 2 API calls"
+
+  - name: test_max_retries_exhausted
+    mock: "ClaudeAPIAdapter always returns invalid output"
+    assert: "raises ValueError('Schema validation failed after 3 attempts')"
+
+  - name: test_no_reclassification_on_retry
+    assert: "IntentNormalizer.normalize and CanonicalClassifier.classify called exactly once"
+
+  - name: test_suffix_appended_on_retry
+    mock: "First attempt fails"
+    assert: "Second attempt prompt ends with retry_suffix"
+
+  - name: test_temperature_zero_on_retries
+    assert: "All retry API calls use temperature=0"

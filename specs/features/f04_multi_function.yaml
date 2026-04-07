@@ -1,0 +1,36 @@
+spec: feature
+id: F-04
+name: Multi-function decomposition
+version: "1.0.0"
+priority: P1
+category: INPUT
+
+description: >
+  Splits requests for multiple functions into N independent pipeline runs.
+  Each sub-intent goes through the full pipeline separately.
+  Functions are never combined in one output block (Principle P-6).
+
+detection_heuristics:
+  - "Presence of 'and' connecting two verb phrases"
+  - "Comma-separated list of operations"
+  - "Numbered list of functions"
+
+non_decomposition:
+  - "'make a calculator' → treated as SINGLE intent (not decomposed)"
+  - "Compound operations that are logically one function"
+
+components_involved:
+  - IntentNormalizer (detects multi-intent)
+  - Pipeline orchestrator (runs N independent pipeline executions)
+
+acceptance_criteria:
+  - test: "'write add and subtract functions' → 2 independent pipeline runs"
+    type: decomposition
+  - test: "Result list length == number of detected sub-intents"
+    type: count
+  - test: "Sub-intent failure does not block subsequent sub-intents"
+    type: isolation
+  - test: "'make a calculator' → treated as SINGLE intent, not decomposed"
+    type: non_decomposition
+  - test: "Each sub-intent gets its own DeterministicResult with its own content_hash"
+    type: independence

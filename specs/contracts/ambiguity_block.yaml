@@ -1,0 +1,45 @@
+spec: contract
+name: AmbiguityBlock
+version: "1.0.0"
+type: dataclass
+module: src.core.contracts
+
+description: >
+  Returned by AmbiguityGate when classification confidence is not HIGH.
+  This is NOT an exception — it is a valid return value that halts the
+  pipeline and requests user clarification.
+
+fields:
+  - name: unclear_dimension
+    type: str
+    description: "What is ambiguous about the intent"
+    constraints:
+      - "Non-empty, human-readable explanation"
+
+  - name: clarifying_question
+    type: str
+    description: "A single yes/no or choice question to resolve the ambiguity"
+    constraints:
+      - "Must be answerable with yes/no or a short choice"
+      - "Must resolve the ambiguity if answered"
+
+  - name: assumed_interpretation
+    type: str
+    description: "What would be assumed if forced to proceed without clarification"
+    constraints:
+      - "Must map to a valid CanonicalType + verb + noun triple"
+
+  - name: classification
+    type: Classification
+    description: "The classification that triggered the ambiguity (for tracing)"
+
+invariants:
+  - "AmbiguityBlock is only created when classification.confidence != HIGH"
+  - "Pipeline does NOT proceed to TemplateBinder when AmbiguityBlock is returned"
+  - "The caller is responsible for re-entering with clarified input"
+
+tests:
+  - name: test_ambiguity_block_has_question
+    assert: "len(result.clarifying_question) > 0"
+  - name: test_ambiguity_preserves_classification
+    assert: "result.classification.confidence != Confidence.HIGH"

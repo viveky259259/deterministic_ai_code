@@ -1,0 +1,35 @@
+name: Determinism Gate
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Lint
+        run: ruff check src/ tests/
+
+      - name: Type check
+        run: mypy src/ --ignore-missing-imports
+
+      - name: Run full test suite
+        run: PYTHONHASHSEED=0 python -m pytest tests/ -v --cov=src --cov-report=term-missing
+
+      - name: Determinism regression (5 runs)
+        run: |
+          for i in 1 2 3 4 5; do
+            echo "=== Regression run $i ==="
+            python -m pytest tests/test_determinism_regression.py -v || exit 1
+          done
+
+      - name: Verify coverage threshold
+        run: |
+          python -m pytest tests/ --cov=src --cov-fail-under=90 -q

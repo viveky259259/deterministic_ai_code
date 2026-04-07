@@ -1,0 +1,45 @@
+spec: feature
+id: F-21
+name: Downstream consumer API
+version: "1.0.0"
+priority: P1
+category: EXTENSION
+
+description: >
+  Typed API for consumers of DeterministicResult. Consumers read from
+  ParsedSections, never from raw_output. Consumers never call the
+  Claude API independently.
+
+consumer_contract:
+  - "Receive DeterministicResult (typed)"
+  - "Read from sections (ParsedSections), not raw_output"
+  - "Never modify implementation code (read-only)"
+  - "Must not call ClaudeAPIAdapter independently"
+
+built_in_consumers:
+  - name: Formatter
+    input: ParsedSections
+    output: "Formatted string"
+    description: "Format parsed sections for display"
+
+  - name: TestRunner
+    input: "test_oracle section"
+    output: "pass/fail result"
+    description: "Execute test assertions, return results"
+
+  - name: SDDRegistry
+    input: DeterministicResult
+    output: "Persisted spec record"
+    description: "Persist to spec store with content_hash as key"
+
+  - name: DependencyGraph
+    input: "dependencies section"
+    output: "Import graph"
+    description: "Build import dependency graph"
+
+acceptance_criteria:
+  - test: "Formatter transforms ParsedSections → formatted string"
+  - test: "TestRunner executes oracle assertions → returns pass/fail"
+  - test: "SDDRegistry persists with content_hash as key"
+  - test: "No consumer calls ClaudeAPIAdapter"
+  - test: "No consumer reads from raw_output"

@@ -1,0 +1,25 @@
+spec: feature
+id: F-20
+name: New language target
+version: "1.0.0"
+priority: P1
+category: EXTENSION
+
+description: >
+  4-step protocol for adding a new language target.
+
+protocol_steps:
+  1: "Add language alias to IntentNormalizer normaliser table"
+  2: "Add casing rules to SYSTEM_PROMPT"
+  3: "Add one canonical example per CanonicalType to SYSTEM_PROMPT"
+  4: "Run full regression for the new language column only"
+
+components_involved:
+  - IntentNormalizer (alias table)
+  - TemplateBinder (language-specific templates)
+  - SYSTEM_PROMPT (casing rules + examples)
+
+acceptance_criteria:
+  - test: "New language alias normalises correctly"
+  - test: "Output uses correct casing for the new language"
+  - test: "Regression passes for new language column"

@@ -1,0 +1,28 @@
+spec: feature
+id: F-12
+name: Test oracle generation
+version: "1.0.0"
+priority: P0
+category: GENERATION
+
+description: >
+  Every generated function includes a test oracle with pure assertions.
+  No mocks, stubs, or test framework wrappers. Minimum 3 assertions.
+
+oracle_rules:
+  - "Minimum 3 assertions per function"
+  - "Pure assertions only: assert(expr === expected) or equivalent"
+  - "No mocks, stubs, spies, or describe/it blocks"
+  - "Floating-point comparisons must use epsilon"
+  - "All inputs are literals (no generated/random data)"
+
+components_involved:
+  - ClaudeAPIAdapter (generates test oracle)
+  - SchemaParser (validates TEST_ORACLE section)
+
+acceptance_criteria:
+  - test: "≥ 3 assertions present"
+  - test: "No describe/it/test wrappers"
+  - test: "All inputs are literals"
+  - test: "Float tests use epsilon comparison"
+  - test: "No mock/stub/spy imports"

@@ -1,0 +1,30 @@
+spec: feature
+id: F-10
+name: Structured output schema
+version: "1.0.0"
+priority: P0
+category: GENERATION
+
+description: >
+  Every Claude API response must conform to the structured output schema
+  with all 5 required sections. SchemaParser validates conformance.
+
+required_sections:
+  - INTENT_CLASSIFICATION
+  - SIGNATURE
+  - IMPLEMENTATION
+  - INVARIANTS
+  - TEST_ORACLE
+
+optional_sections:
+  - DEPENDENCIES
+  - AMBIGUITY
+
+components_involved:
+  - SchemaParser
+
+acceptance_criteria:
+  - test: "All 5 required sections present → SchemaParser returns ParsedSections"
+  - test: "Any section missing → SchemaParser returns None → RetryOrchestrator fires"
+  - test: "IMPLEMENTATION contains exactly one fenced code block"
+  - test: "Sections delimited by ---SECTION_NAME--- markers"

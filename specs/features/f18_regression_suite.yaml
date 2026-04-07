@@ -1,0 +1,39 @@
+spec: feature
+id: F-18
+name: Determinism regression suite
+version: "1.0.0"
+priority: P0
+category: DETERMINISM
+
+description: >
+  Automated test suite verifying hash stability across equivalent phrasings,
+  repeated calls, and cross-session runs.
+
+test_matrix:
+  full_regression:
+    scope: "7 CanonicalTypes × 3 languages × 20 calls"
+    total_calls: 420
+    assertions: "All hashes identical per intent_key"
+
+  fast_regression:
+    scope: "PURE_FUNCTION + PREDICATE × JavaScript only"
+    total_calls: 60
+    time_limit: "< 90 seconds"
+    usage: "CI pre-merge gate"
+
+mandatory_trigger_events:
+  - "System prompt edit (any section)"
+  - "Synonym table change (add, edit, remove)"
+  - "Model version upgrade"
+  - "New CanonicalType added"
+  - "New language target added"
+
+components_involved:
+  - DeterministicCodeAgent (full pipeline)
+  - DriftDetector (hash comparison)
+
+acceptance_criteria:
+  - test: "5 calls with canonical trigger phrase → all 5 hashes identical"
+  - test: "5 calls with 3 synonym phrasings each → all 15 hashes identical"
+  - test: "Fast regression completes in < 90 seconds"
+  - test: "Any hash mismatch → block merge"

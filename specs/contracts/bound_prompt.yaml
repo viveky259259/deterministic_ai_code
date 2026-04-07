@@ -1,0 +1,44 @@
+spec: contract
+name: BoundPrompt
+version: "1.0.0"
+type: dataclass
+module: src.core.contracts
+
+description: >
+  Output of the TemplateBinder. Contains the fully assembled system prompt
+  and user message ready to send to the Claude API. The classification
+  is carried for tracing.
+
+fields:
+  - name: system_prompt
+    type: str
+    description: "Full SYSTEM_PROMPT string (sections 3-8 of the prompt)"
+    constraints:
+      - "Immutable across all requests within a session"
+      - "Never modified per-request — breaks session map integrity"
+
+  - name: user_message
+    type: str
+    description: "Formatted user message: 'Language target: {lang}\\nIntent: {intent}'"
+    constraints:
+      - "Equivalent phrasings MUST produce identical user_message"
+      - "This is the determinism bottleneck — if two inputs differ here, outputs will differ"
+
+  - name: classification
+    type: Classification
+    description: "The classification that produced this prompt (for tracing)"
+
+invariants:
+  - "system_prompt is constant for the lifetime of the agent instance"
+  - "user_message is derived deterministically from Classification"
+  - "Same Classification always produces same BoundPrompt"
+
+tests:
+  - name: test_user_message_format
+    input: {language: "javascript", verb: "add", noun: "Total"}
+    assert: "'Language target: javascript' in result.user_message"
+  - name: test_equivalent_phrasings_same_message
+    inputs:
+      - {raw: "write add function", language: "javascript"}
+      - {raw: "make a sum method", language: "javascript"}
+    assert: "result_a.user_message == result_b.user_message"

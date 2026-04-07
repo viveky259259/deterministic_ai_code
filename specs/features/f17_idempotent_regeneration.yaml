@@ -1,0 +1,23 @@
+spec: feature
+id: F-17
+name: Idempotent regeneration
+version: "1.0.0"
+priority: P0
+category: DETERMINISM
+
+description: >
+  Idempotency is emergent from the pipeline: same input → same NormalizedIntent
+  → same Classification → same BoundPrompt → same RawOutput → same content_hash.
+  "Regenerate" without prompt change = byte-for-byte identical output.
+
+mechanism: >
+  Not a special mode — it's a property of the pipeline. If any stage
+  introduces variance for equivalent inputs, it's a bug.
+
+components_involved:
+  - "Entire pipeline (IntentNormalizer → DriftDetector)"
+
+acceptance_criteria:
+  - test: "agent.generate('write add function') × 10 → 10 identical content_hash values"
+  - test: "'sum' and 'add' → same hash (synonym collapse makes them identical)"
+  - test: "DriftDetector raises DETERMINISM_VIOLATION if hashes differ"

@@ -1,0 +1,57 @@
+spec: feature
+id: F-06
+name: Canonical intent classifier
+version: "1.0.0"
+priority: P0
+category: NORMALISATION
+
+description: >
+  Rule-based classifier that maps NormalizedIntent to CanonicalType
+  with a confidence level. Deterministic by design — no ML, no randomness.
+
+classification_rules:
+  PURE_FUNCTION:
+    conditions:
+      - "canonical_verb in {add, subtract, multiply, divide, calculate, format, transform}"
+      - "AND no I/O keywords present"
+  PREDICATE:
+    conditions:
+      - "intent contains is/has/can/should"
+      - "OR canonical_verb == 'validate'"
+  TRANSFORMER:
+    conditions:
+      - "'to', 'from', 'into' present"
+      - "OR canonical_verb == 'transform'"
+  AGGREGATOR:
+    conditions:
+      - "collection nouns + reduce/sum/count/group"
+  SIDE_EFFECT_OP:
+    conditions:
+      - "canonical_verb in {save, delete, send, update, write}"
+  CLASS_METHOD:
+    conditions:
+      - "'method', 'on class', 'inside', 'member of' present"
+  ASYNC_OPERATION:
+    conditions:
+      - "canonical_verb == 'fetch'"
+      - "OR 'async'/'await'/'concurrent' present"
+
+confidence_rules:
+  HIGH: "Exactly one type matches"
+  MEDIUM: "Two types could match"
+  LOW: "No type matches or verb is unrecognised"
+
+components_involved:
+  - CanonicalClassifier
+
+acceptance_criteria:
+  - test: "'write add function' → PURE_FUNCTION, HIGH"
+  - test: "'make a sum method' → PURE_FUNCTION, HIGH"
+  - test: "'check if even' → PREDICATE, HIGH"
+  - test: "'is it a valid email' → PREDICATE, HIGH"
+  - test: "'transform user to DTO' → TRANSFORMER, HIGH"
+  - test: "'count active users' → AGGREGATOR, HIGH"
+  - test: "'save user to database' → SIDE_EFFECT_OP, HIGH"
+  - test: "'fetch user profile' → ASYNC_OPERATION, HIGH"
+  - test: "'transform and save data' → MEDIUM (two types match)"
+  - test: "'frobnicate' → LOW (no type matches)"

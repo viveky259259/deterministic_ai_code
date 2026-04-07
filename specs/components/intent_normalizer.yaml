@@ -1,0 +1,105 @@
+spec: component
+name: IntentNormalizer
+version: "1.0.0"
+layer: L1
+module: src.core.intent_normalizer
+
+description: >
+  First stage of the pipeline. Collapses user input into a canonical
+  verb+noun pair via the synonym table. This is the primary determinism
+  mechanism — all equivalent phrasings must produce the same NormalizedIntent.
+
+input:
+  type: str
+  description: "Raw user intent string"
+  constraints:
+    - "Must be non-empty and >= 3 characters"
+    - "Unicode normalized (NFKC) before processing"
+    - "Lowercased before synonym lookup"
+
+output:
+  type: NormalizedIntent
+  fields: [canonical_verb, canonical_noun, raw_input, source]
+
+dependencies:
+  contracts: [NormalizedIntent]
+
+verb_synonym_table:
+  add: [add, sum, plus, combine]
+  subtract: [subtract, minus, "remove from"]
+  multiply: [multiply, times, product]
+  divide: [divide, "split by", quotient]
+  format: [format, render, display, show]
+  fetch: [fetch, get, retrieve, pull]
+  validate: [validate, check, verify, ensure]
+  transform: [transform, convert, map, cast]
+  calculate: [calculate, compute, derive]
+  save: [save, persist, store, write]
+
+methods:
+  - name: normalize
+    signature: "def normalize(self, raw_input: str, language: str) -> NormalizedIntent"
+    description: "Main entry point — normalize raw input to canonical form"
+    steps:
+      - "Strip whitespace, normalize unicode (NFKC)"
+      - "Validate length >= 3 chars, raise ValueError if too short"
+      - "Check for YAML front matter — if found, set source='yaml_spec'"
+      - "Lowercase input for synonym lookup"
+      - "Extract verb via synonym table match"
+      - "Extract noun via domain object detection"
+      - "Return NormalizedIntent with source='freetext'"
+
+  - name: _extract_verb
+    signature: "def _extract_verb(self, text: str) -> str | None"
+    description: "Find the canonical verb by matching against synonym table"
+    returns: "Canonical verb string or None if no match"
+
+  - name: _extract_noun
+    signature: "def _extract_noun(self, text: str, verb: str) -> str"
+    description: "Derive PascalCase noun from remaining text after verb extraction"
+    returns: "PascalCase noun string"
+
+  - name: _detect_yaml_spec
+    signature: "def _detect_yaml_spec(self, text: str) -> bool"
+    description: "Check if input contains YAML front matter or spec structure"
+
+error_conditions:
+  - condition: "Input is empty or < 3 chars"
+    action: "raise ValueError('Intent too short')"
+  - condition: "No verb match in synonym table"
+    action: "Return NormalizedIntent with verb='unknown' — classifier will set LOW confidence"
+  - condition: "Input contains YAML front matter"
+    action: "Route to SpecValidator (source='yaml_spec'), skip synonym collapse"
+
+acceptance_tests:
+  - name: test_add_synonym_collapse
+    inputs: ["write add function", "make a sum method", "create a function to add two numbers"]
+    assert: "all produce canonical_verb='add', canonical_noun='Total'"
+
+  - name: test_case_insensitive
+    input: "CREATE A METHOD TO SUM TWO NUMBERS"
+    assert: "canonical_verb='add', canonical_noun='Total'"
+
+  - name: test_empty_input_raises
+    input: ""
+    assert: "raises ValueError('Intent too short')"
+
+  - name: test_short_input_raises
+    input: "ab"
+    assert: "raises ValueError('Intent too short')"
+
+  - name: test_unknown_verb_passthrough
+    input: "frobnicate the data"
+    assert: "canonical_verb='unknown'"
+
+  - name: test_yaml_detection
+    input: "intent: pure_function\nverb: add"
+    assert: "source='yaml_spec'"
+
+  - name: test_unicode_normalization
+    input: "ａｄｄ two numbers"
+    assert: "canonical_verb='add' (fullwidth chars normalized)"
+
+  - name: test_whitespace_trimming
+    input: "  write add function  "
+    assert: "Same result as 'write add function'"

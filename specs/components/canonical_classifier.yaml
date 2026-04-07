@@ -1,0 +1,118 @@
+spec: component
+name: CanonicalClassifier
+version: "1.0.0"
+layer: L2
+module: src.core.canonical_classifier
+
+description: >
+  Maps a NormalizedIntent to a CanonicalType with a confidence level.
+  Uses rule-based classification (not ML) — deterministic by design.
+  Exactly one type must match for HIGH confidence.
+
+input:
+  type: NormalizedIntent
+  additional: {language: str}
+
+output:
+  type: Classification
+  fields: [intent_type, confidence, normalized, language]
+
+dependencies:
+  contracts: [NormalizedIntent, Classification, CanonicalType, Confidence]
+
+classification_rules:
+  PURE_FUNCTION:
+    conditions:
+      - "canonical_verb in {add, subtract, multiply, divide, calculate, format, transform}"
+      - "AND no I/O keywords (save, delete, send, fetch, stream) in raw_input"
+    priority: 1
+
+  PREDICATE:
+    conditions:
+      - "raw_input contains is/has/can/should"
+      - "OR canonical_verb == 'validate'"
+    priority: 2
+
+  TRANSFORMER:
+    conditions:
+      - "'to', 'from', 'into' present in raw_input"
+      - "OR canonical_verb == 'transform'"
+    priority: 3
+    note: "Overlaps with PURE_FUNCTION when verb is 'transform' — TRANSFORMER wins"
+
+  AGGREGATOR:
+    conditions:
+      - "Collection nouns detected (users, items, orders, etc.)"
+      - "AND reduce/sum/count/group keyword present"
+    priority: 4
+
+  SIDE_EFFECT_OP:
+    conditions:
+      - "canonical_verb in {save, delete, send, update, write}"
+    priority: 5
+
+  CLASS_METHOD:
+    conditions:
+      - "'method', 'on class', 'inside', 'member of' in raw_input"
+    priority: 6
+
+  ASYNC_OPERATION:
+    conditions:
+      - "canonical_verb == 'fetch'"
+      - "OR 'async', 'await', 'concurrent' in raw_input"
+    priority: 7
+
+confidence_rules:
+  HIGH: "Exactly one type matches"
+  MEDIUM: "Two types could match"
+  LOW: "No type matches OR verb is unrecognised"
+
+methods:
+  - name: classify
+    signature: "def classify(self, normalized: NormalizedIntent, language: str) -> Classification"
+    description: "Main entry — classify normalized intent into canonical type"
+    steps:
+      - "Evaluate all classification rules against the normalized intent"
+      - "Count matching types"
+      - "If exactly 1 match → HIGH confidence"
+      - "If 2+ matches → MEDIUM confidence (pick highest priority)"
+      - "If 0 matches → LOW confidence"
+      - "Return Classification dataclass"
+
+  - name: _evaluate_rules
+    signature: "def _evaluate_rules(self, normalized: NormalizedIntent) -> list[CanonicalType]"
+    description: "Return all matching CanonicalTypes for the given intent"
+
+acceptance_tests:
+  - name: test_pure_function_add
+    input: {canonical_verb: "add", raw_input: "write add function"}
+    assert_type: PURE_FUNCTION
+    assert_confidence: HIGH
+
+  - name: test_predicate_validate
+    input: {canonical_verb: "validate", raw_input: "check if even"}
+    assert_type: PREDICATE
+    assert_confidence: HIGH
+
+  - name: test_transformer_convert
+    input: {canonical_verb: "transform", raw_input: "convert user to DTO"}
+    assert_type: TRANSFORMER
+    assert_confidence: HIGH
+
+  - name: test_side_effect_save
+    input: {canonical_verb: "save", raw_input: "save user to database"}
+    assert_type: SIDE_EFFECT_OP
+    assert_confidence: HIGH
+
+  - name: test_async_fetch
+    input: {canonical_verb: "fetch", raw_input: "fetch user profile"}
+    assert_type: ASYNC_OPERATION
+    assert_confidence: HIGH
+
+  - name: test_ambiguous_two_matches
+    input: {canonical_verb: "transform", raw_input: "transform and save data"}
+    assert_confidence: MEDIUM
+
+  - name: test_unknown_verb_low_confidence
+    input: {canonical_verb: "unknown", raw_input: "frobnicate the data"}
+    assert_confidence: LOW

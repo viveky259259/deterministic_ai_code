@@ -1,0 +1,24 @@
+spec: feature
+id: F-14
+name: Drift detector
+version: "1.0.0"
+priority: P0
+category: VALIDATION
+
+description: >
+  Session-scoped hash comparison for determinism enforcement.
+  Same intent_key must always produce same content_hash within a session.
+  Raises DETERMINISM_VIOLATION on mismatch — never swallowed.
+
+references:
+  component_spec: "specs/components/drift_detector.yaml"
+  violation_protocol: "Section 15 of complete_prompt.md"
+
+components_involved:
+  - DriftDetector
+
+acceptance_criteria:
+  - test: "First occurrence → stores hash, no error"
+  - test: "Same hash on repeat → no error"
+  - test: "Different hash on repeat → raises RuntimeError('DETERMINISM_VIOLATION')"
+  - test: "Violation is never caught internally — propagates to caller"

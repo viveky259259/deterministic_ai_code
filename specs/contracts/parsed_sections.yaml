@@ -1,0 +1,54 @@
+spec: contract
+name: ParsedSections
+version: "1.0.0"
+type: dataclass
+module: src.core.contracts
+
+description: >
+  Output of the SchemaParser. Contains the typed, validated sections
+  extracted from the Claude API raw output. Consumers read from this,
+  never from raw_output directly.
+
+fields:
+  - name: intent_classification
+    type: str
+    description: "Parsed INTENT_CLASSIFICATION section: type, confidence, verb, noun"
+
+  - name: signature
+    type: str
+    description: "Parsed SIGNATURE section: one line per target language"
+
+  - name: implementation
+    type: str
+    description: "Parsed IMPLEMENTATION section: raw code, fences stripped"
+    constraints:
+      - "No import statements (declared in dependencies instead)"
+      - "Exactly one function definition"
+      - "No comments unless intent_type is ASYNC_OPERATION"
+      - "Fences (```lang) stripped before storing"
+
+  - name: invariants
+    type: str
+    description: "Parsed INVARIANTS section: preconditions, postconditions, edge_cases"
+
+  - name: test_oracle
+    type: str
+    description: "Parsed TEST_ORACLE section: ≥3 pure assertions"
+
+  - name: dependencies
+    type: "Optional[str]"
+    default: null
+    description: "Parsed DEPENDENCIES section — only present if non-stdlib imports required"
+
+invariants:
+  - "All 5 required fields are non-empty strings"
+  - "implementation contains no fence markers (```)"
+  - "test_oracle contains ≥3 assert statements"
+
+tests:
+  - name: test_all_required_fields_present
+    assert: "all(getattr(result, f) for f in ['intent_classification', 'signature', 'implementation', 'invariants', 'test_oracle'])"
+  - name: test_implementation_has_no_fences
+    assert: "'```' not in result.implementation"
+  - name: test_dependencies_is_optional
+    assert: "result.dependencies is None or isinstance(result.dependencies, str)"

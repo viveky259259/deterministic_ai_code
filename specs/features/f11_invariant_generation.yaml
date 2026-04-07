@@ -1,0 +1,34 @@
+spec: feature
+id: F-11
+name: Invariant generation
+version: "1.0.0"
+priority: P0
+category: GENERATION
+
+description: >
+  Every generated function includes invariants: preconditions (what must
+  be true about inputs), postconditions (what is guaranteed about output),
+  and edge_cases (boundary/degenerate input behaviour).
+
+invariant_structure:
+  preconditions:
+    description: "What must be true about inputs before calling"
+    constraints:
+      - "Each precondition references a named parameter"
+  postconditions:
+    description: "What is guaranteed to be true about the output"
+  edge_cases:
+    description: "Enumerated behaviours for boundary/degenerate inputs"
+    constraints:
+      - "At least one numeric edge case stated"
+      - "No 'see implementation' references"
+
+components_involved:
+  - ClaudeAPIAdapter (generates invariants)
+  - SchemaParser (validates INVARIANTS section present)
+
+acceptance_criteria:
+  - test: "All three sub-sections (preconditions, postconditions, edge_cases) present"
+  - test: "Each precondition references a named parameter"
+  - test: "At least one numeric edge case stated"
+  - test: "No 'see implementation' in edge_cases"

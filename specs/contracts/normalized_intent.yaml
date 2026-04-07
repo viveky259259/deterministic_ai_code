@@ -1,0 +1,50 @@
+spec: contract
+name: NormalizedIntent
+version: "1.0.0"
+type: dataclass
+module: src.core.contracts
+
+description: >
+  Output of the IntentNormalizer. Contains the canonical verb and noun
+  derived from user input via synonym collapse. Carries the raw input
+  for tracing and the source tag for pipeline routing.
+
+fields:
+  - name: canonical_verb
+    type: str
+    description: "Canonical verb from synonym table (e.g. 'add', 'fetch', 'validate')"
+    constraints:
+      - "Must be a key in the VERB_SYNONYM_TABLE"
+      - "Lowercase, no spaces"
+
+  - name: canonical_noun
+    type: str
+    description: "PascalCase noun derived from the domain object (e.g. 'Total', 'User')"
+    constraints:
+      - "PascalCase — first letter uppercase, no underscores"
+      - "Never abbreviated (e.g. 'Number' not 'Num')"
+
+  - name: raw_input
+    type: str
+    description: "Original user string, preserved for tracing and logging"
+    constraints:
+      - "Immutable — never modified after creation"
+      - "Used for prompt_hash in observability"
+
+  - name: source
+    type: str
+    description: "Input source tag"
+    allowed_values: ["freetext", "yaml_spec", "json_spec"]
+    constraints:
+      - "Determines pipeline routing — yaml_spec/json_spec skip normalisation"
+
+tests:
+  - name: test_freetext_source
+    input: {raw_input: "write add function"}
+    assert: "result.source == 'freetext'"
+    assert_verb: "result.canonical_verb == 'add'"
+    assert_noun: "result.canonical_noun == 'Total'"
+
+  - name: test_spec_source
+    input: {raw_input: "intent: pure_function\nverb: add"}
+    assert: "result.source == 'yaml_spec'"

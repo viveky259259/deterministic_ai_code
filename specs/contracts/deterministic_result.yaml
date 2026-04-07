@@ -1,0 +1,54 @@
+spec: contract
+name: DeterministicResult
+version: "1.0.0"
+type: dataclass
+module: src.core.contracts
+
+description: >
+  Final output of the pipeline. Contains parsed sections, content hash
+  for drift detection, raw output for debugging, and ambiguity state.
+  This is what downstream consumers (Formatter, TestRunner, SDDRegistry) receive.
+
+fields:
+  - name: sections
+    type: "Optional[ParsedSections]"
+    description: "Typed, validated sections — None only when is_ambiguity=True"
+
+  - name: content_hash
+    type: str
+    description: "SHA-256[:16] of the implementation block (fences stripped)"
+    constraints:
+      - "Computed as: hashlib.sha256(implementation.encode('utf-8')).hexdigest()[:16]"
+      - "Empty string when is_ambiguity=True"
+      - "Must be identical across equivalent phrasings (determinism guarantee)"
+
+  - name: raw_output
+    type: str
+    description: "Complete raw response from Claude API — for debugging only"
+    constraints:
+      - "Consumers must NOT read from this — use sections instead"
+
+  - name: is_ambiguity
+    type: bool
+    default: false
+    description: "True when the pipeline halted due to ambiguous classification"
+
+  - name: ambiguity
+    type: "Optional[AmbiguityBlock]"
+    default: null
+    description: "Present only when is_ambiguity=True"
+
+invariants:
+  - "is_ambiguity=False implies sections is not None"
+  - "is_ambiguity=True implies content_hash == '' and ambiguity is not None"
+  - "content_hash is stable across equivalent phrasings on the same model version"
+
+tests:
+  - name: test_successful_result_has_sections
+    assert: "not result.is_ambiguity implies result.sections is not None"
+  - name: test_ambiguity_result_has_empty_hash
+    assert: "result.is_ambiguity implies result.content_hash == ''"
+  - name: test_hash_is_16_chars
+    assert: "not result.is_ambiguity implies len(result.content_hash) == 16"
+  - name: test_hash_is_hex
+    assert: "not result.is_ambiguity implies all(c in '0123456789abcdef' for c in result.content_hash)"

@@ -1,0 +1,35 @@
+spec: feature
+id: F-08
+name: Naming convention enforcer
+version: "1.0.0"
+priority: P0
+category: NORMALISATION
+
+description: >
+  Enforces canonical naming rules per intent type and target language.
+  Function names, parameter names, and casing are all deterministic.
+
+function_name_rules:
+  PURE_FUNCTION: "noun only (e.g. 'total', not 'addTotal')"
+  PREDICATE: "prefix 'is' (e.g. 'isEvenNumber')"
+  TRANSFORMER: "prefix 'to' (e.g. 'toUserDto')"
+  AGGREGATOR: "prefix 'reduce' or noun (e.g. 'sumOrders')"
+  SIDE_EFFECT_OP: "verb+noun (e.g. 'saveUser')"
+  CLASS_METHOD: "verb_noun (Python snake_case)"
+  ASYNC_OPERATION: "verb_noun (e.g. 'fetchUser')"
+
+parameter_rules:
+  - "Always fully spelled out nouns, never abbreviations"
+  - "firstNumber not n1, userId not uid"
+  - "Collections: plural of element noun (users not list)"
+
+components_involved:
+  - TemplateBinder (applies naming rules)
+
+acceptance_criteria:
+  - test: "PURE_FUNCTION + 'add' + 'Total' → function name: 'total'"
+  - test: "PREDICATE + 'validate' + 'EvenNumber' → function name: 'isEvenNumber'"
+  - test: "TRANSFORMER + 'transform' + 'UserDto' → function name: 'toUserDto'"
+  - test: "2 numeric params → always 'firstNumber', 'secondNumber'"
+  - test: "Python PURE_FUNCTION → snake_case function name"
+  - test: "No abbreviated params (n1, n2, uid, arr) in any output"

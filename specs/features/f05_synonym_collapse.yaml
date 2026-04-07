@@ -1,0 +1,47 @@
+spec: feature
+id: F-05
+name: Synonym collapse
+version: "1.0.0"
+priority: P0
+category: NORMALISATION
+
+description: >
+  Maps every synonym to a canonical verb. This is THE primary determinism
+  mechanism. All equivalent phrasings must resolve to the same canonical
+  verb, producing identical downstream output.
+
+synonym_table:
+  add: [add, sum, plus, combine]
+  subtract: [subtract, minus, "remove from"]
+  multiply: [multiply, times, product]
+  divide: [divide, "split by", quotient]
+  format: [format, render, display, show]
+  fetch: [fetch, get, retrieve, pull]
+  validate: [validate, check, verify, ensure]
+  transform: [transform, convert, map, cast]
+  calculate: [calculate, compute, derive]
+  save: [save, persist, store, write]
+
+components_involved:
+  - IntentNormalizer
+
+determinism_guarantee: >
+  Same canonical_verb + same language → same content_hash.
+  This is the core contract. If synonym collapse breaks,
+  determinism breaks.
+
+acceptance_criteria:
+  - test: "'sum' → canonical_verb = 'add'"
+    type: synonym
+  - test: "'retrieve user' → canonical_verb = 'fetch'"
+    type: synonym
+  - test: "'persist data' → canonical_verb = 'save'"
+    type: synonym
+  - test: "'compute total' → canonical_verb = 'calculate'"
+    type: synonym
+  - test: "'frobnicate' → no match → confidence = LOW → AmbiguityBlock"
+    type: unknown
+  - test: "Same canonical_verb + same language → same content_hash"
+    type: determinism
+  - test: "'add' and 'sum' produce identical content_hash for same intent"
+    type: hash_stability

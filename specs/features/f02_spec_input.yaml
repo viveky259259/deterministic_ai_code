@@ -1,0 +1,52 @@
+spec: feature
+id: F-02
+name: YAML / JSON spec input
+version: "1.0.0"
+priority: P0
+category: INPUT
+
+description: >
+  Accepts a structured spec file as canonical input, bypassing synonym
+  collapse and classification. Per Principle P-5, specs are already
+  canonical — normalisation is skipped.
+
+input:
+  type: str
+  format: "YAML or JSON"
+  schema:
+    required: [intent, verb, noun, language]
+    optional: [params, returns]
+
+output:
+  type: Classification
+  constraints:
+    - "confidence is ALWAYS HIGH"
+    - "No synonym lookup performed"
+
+pipeline_shortcut: "SpecValidator → Classification → TemplateBinder → (rest of happy path)"
+
+components_involved:
+  - SpecValidator
+
+spec_example:
+  yaml: |
+    intent: pure_function
+    verb: add
+    noun: Total
+    params:
+      - name: firstNumber
+        type: number
+      - name: secondNumber
+        type: number
+    returns: number
+    language: javascript
+
+acceptance_criteria:
+  - test: "Valid YAML spec → Classification with confidence=HIGH, no synonym lookup"
+    type: happy_path
+  - test: "Missing 'verb' field → raises SchemaError('Missing required field: verb')"
+    type: error
+  - test: "Valid JSON spec → same as YAML"
+    type: format_parity
+  - test: "Invalid YAML syntax → raises SchemaError('Invalid spec format')"
+    type: error

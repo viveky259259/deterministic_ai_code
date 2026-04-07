@@ -1,0 +1,29 @@
+spec: feature
+id: F-09
+name: Template binder
+version: "1.0.0"
+priority: P0
+category: GENERATION
+
+description: >
+  Binds Classification to a structural template per CanonicalType.
+  Each type has exactly one template (Rule D-2). Equivalent Classifications
+  produce identical BoundPrompts.
+
+templates:
+  PURE_FUNCTION: "const {name} = ({params}) => {expression};"
+  PREDICATE: "const {name} = ({param}) => {boolean_expression};"
+  TRANSFORMER: "const {name} = ({param}: {InputType}): {OutputType} => ({mapping});"
+  AGGREGATOR: "const {name} = ({params}: {T}[]): {ResultType} => {fold};"
+  SIDE_EFFECT_OP: "async function {name}({params}): Promise<{Result}> { ... }"
+  CLASS_METHOD: "{name}({params}): {ReturnType} { ... }"
+  ASYNC_OPERATION: "async function {name}({params}): Promise<{ReturnType}> { ... }"
+
+components_involved:
+  - TemplateBinder
+
+acceptance_criteria:
+  - test: "PURE_FUNCTION → always arrow function, never named function"
+  - test: "SIDE_EFFECT_OP → always async, always returns Promise"
+  - test: "Equivalent phrasings → identical BoundPrompt.user_message"
+  - test: "Template for given type never changes at runtime"

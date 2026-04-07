@@ -1,0 +1,51 @@
+spec: feature
+id: F-03
+name: Multi-language targeting
+version: "1.0.0"
+priority: P0
+category: INPUT
+
+description: >
+  Normalises language aliases to canonical language names.
+  Unsupported languages raise ValueError.
+
+language_normalizer_table:
+  javascript: [js, javascript]
+  typescript: [ts, typescript]
+  python: [py, python, python3]
+  go: [go, golang]
+
+components_involved:
+  - IntentNormalizer (language normalisation)
+  - TemplateBinder (language-specific templates)
+
+casing_rules:
+  javascript:
+    functions: camelCase
+    classes: PascalCase
+    constants: SCREAMING_SNAKE
+  typescript:
+    functions: camelCase
+    classes: PascalCase
+    constants: SCREAMING_SNAKE
+  python:
+    functions: snake_case
+    classes: PascalCase
+    constants: SCREAMING_SNAKE
+  go:
+    unexported: camelCase
+    exported: PascalCase
+
+acceptance_criteria:
+  - test: "language='js' → normalises to 'javascript'"
+    type: alias
+  - test: "language='py' → normalises to 'python'"
+    type: alias
+  - test: "language='golang' → normalises to 'go'"
+    type: alias
+  - test: "language='rust' → raises ValueError('Unsupported language: rust')"
+    type: error
+  - test: "Python output uses snake_case function names"
+    type: casing
+  - test: "JavaScript output uses camelCase function names"
+    type: casing

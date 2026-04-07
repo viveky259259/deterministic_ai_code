@@ -1,0 +1,61 @@
+spec: component
+name: AmbiguityGate
+version: "1.0.0"
+layer: gate
+module: src.core.ambiguity_gate
+
+description: >
+  Hard gate between CanonicalClassifier and TemplateBinder.
+  Passes through HIGH confidence classifications unchanged.
+  Halts on MEDIUM or LOW, returning an AmbiguityBlock.
+  This is NOT an error — it is a valid pipeline termination.
+
+input:
+  type: Classification
+
+output:
+  type: "Classification | AmbiguityBlock"
+  description: "Pass-through on HIGH, AmbiguityBlock on MEDIUM/LOW"
+
+dependencies:
+  contracts: [Classification, Confidence, AmbiguityBlock]
+
+methods:
+  - name: evaluate
+    signature: "def evaluate(self, classification: Classification) -> Classification | AmbiguityBlock"
+    description: "Gate function — pass or halt based on confidence"
+    steps:
+      - "If confidence == HIGH → return classification unchanged"
+      - "If confidence == MEDIUM → build AmbiguityBlock with multi-match context"
+      - "If confidence == LOW → build AmbiguityBlock with unrecognised verb context"
+
+  - name: _build_ambiguity_block
+    signature: "def _build_ambiguity_block(self, classification: Classification) -> AmbiguityBlock"
+    description: "Construct AmbiguityBlock with appropriate question and assumed interpretation"
+
+invariants:
+  - "HIGH confidence ALWAYS passes through — never halted"
+  - "MEDIUM/LOW NEVER pass through — always halted"
+  - "No API calls are made when halted — AmbiguityBlock is the terminal output"
+  - "AmbiguityBlock is NOT an exception — it is a valid return value"
+
+acceptance_tests:
+  - name: test_high_confidence_passes
+    input: {confidence: HIGH, intent_type: PURE_FUNCTION}
+    assert: "returns Classification (same object)"
+
+  - name: test_medium_confidence_halts
+    input: {confidence: MEDIUM}
+    assert: "returns AmbiguityBlock with clarifying_question"
+
+  - name: test_low_confidence_halts
+    input: {confidence: LOW}
+    assert: "returns AmbiguityBlock with clarifying_question"
+
+  - name: test_ambiguity_block_is_not_exception
+    input: {confidence: LOW}
+    assert: "isinstance(result, AmbiguityBlock), no exception raised"
+
+  - name: test_no_api_call_on_halt
+    input: {confidence: MEDIUM}
+    assert: "ClaudeAPIAdapter was NOT called"

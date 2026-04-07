@@ -1,0 +1,92 @@
+spec: component
+name: TemplateBinder
+version: "1.0.0"
+layer: L3
+module: src.core.template_binder
+
+description: >
+  Binds a Classification to a structural prompt template, producing
+  a BoundPrompt ready for the Claude API. Each CanonicalType has exactly
+  one template (Rule D-2). Equivalent Classifications MUST produce
+  identical BoundPrompts (determinism bottleneck).
+
+input:
+  type: Classification
+
+output:
+  type: BoundPrompt
+  fields: [system_prompt, user_message, classification]
+
+dependencies:
+  contracts: [Classification, BoundPrompt, CanonicalType]
+
+templates:
+  javascript:
+    PURE_FUNCTION: "const {name} = ({params}) => {expression};"
+    PREDICATE: "const {name} = ({param}) => {boolean_expression};"
+    TRANSFORMER: "const {name} = ({param}: {InputType}): {OutputType} => ({mapping});"
+    AGGREGATOR: "const {name} = ({params}: {T}[]): {ResultType} => {fold};"
+    SIDE_EFFECT_OP: "async function {name}({params}): Promise<{Result}> { ... }"
+    CLASS_METHOD: "{name}({params}): {ReturnType} { ... }"
+    ASYNC_OPERATION: "async function {name}({params}): Promise<{ReturnType}> { ... }"
+
+  python:
+    PURE_FUNCTION: "def {name}({params}) -> {ReturnType}:"
+    PREDICATE: "def {name}({param}) -> bool:"
+    TRANSFORMER: "def {name}({param}: {InputType}) -> {OutputType}:"
+    AGGREGATOR: "def {name}({params}: list[{T}]) -> {ResultType}:"
+    SIDE_EFFECT_OP: "async def {name}({params}) -> {Result}:"
+    CLASS_METHOD: "def {name}(self, {params}) -> {ReturnType}:"
+    ASYNC_OPERATION: "async def {name}({params}) -> {ReturnType}:"
+
+naming_rules:
+  PURE_FUNCTION: "noun only (e.g. 'total', not 'addTotal')"
+  PREDICATE: "prefix 'is' (e.g. 'isEvenNumber')"
+  TRANSFORMER: "prefix 'to' (e.g. 'toUserDto')"
+  AGGREGATOR: "prefix 'reduce' or noun (e.g. 'sumOrders')"
+  SIDE_EFFECT_OP: "verb+noun (e.g. 'saveUser')"
+  CLASS_METHOD: "verb_noun in Python (e.g. 'save_user')"
+  ASYNC_OPERATION: "verb_noun (e.g. 'fetch_user')"
+
+methods:
+  - name: bind
+    signature: "def bind(self, classification: Classification) -> BoundPrompt"
+    description: "Main entry — bind classification to template, produce BoundPrompt"
+    steps:
+      - "Look up template for (intent_type, language)"
+      - "Apply naming rules for the intent type"
+      - "Construct user_message with template context"
+      - "Attach constant SYSTEM_PROMPT"
+      - "Return BoundPrompt"
+
+  - name: _resolve_function_name
+    signature: "def _resolve_function_name(self, classification: Classification) -> str"
+    description: "Apply naming rules to derive the canonical function name"
+
+  - name: _format_user_message
+    signature: "def _format_user_message(self, classification: Classification) -> str"
+    description: "Build the user_message string for the Claude API call"
+
+invariants:
+  - "Same Classification always produces same BoundPrompt (byte-for-byte)"
+  - "SYSTEM_PROMPT is constant — never modified per request"
+  - "Templates are not configurable at runtime — hardcoded per CanonicalType"
+
+acceptance_tests:
+  - name: test_pure_function_arrow
+    input: {type: PURE_FUNCTION, verb: "add", noun: "Total", language: "javascript"}
+    assert: "Template is arrow function, name is 'total'"
+
+  - name: test_predicate_is_prefix
+    input: {type: PREDICATE, verb: "validate", noun: "EvenNumber", language: "javascript"}
+    assert: "Function name is 'isEvenNumber'"
+
+  - name: test_python_snake_case
+    input: {type: PURE_FUNCTION, verb: "add", noun: "Total", language: "python"}
+    assert: "Function uses snake_case"
+
+  - name: test_equivalent_inputs_same_output
+    inputs:
+      - {verb: "add", noun: "Total", language: "javascript", raw: "write add function"}
+      - {verb: "add", noun: "Total", language: "javascript", raw: "make a sum method"}
+    assert: "bound_prompt_a.user_message == bound_prompt_b.user_message"

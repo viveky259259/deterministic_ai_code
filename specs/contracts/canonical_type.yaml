@@ -1,0 +1,59 @@
+spec: contract
+name: CanonicalType
+version: "1.0.0"
+type: enum
+module: src.core.contracts
+
+description: >
+  Enumeration of all supported canonical intent types.
+  Classification is the FIRST step before any code generation.
+  Each type maps to exactly one structural template (Rule D-2).
+
+values:
+  - name: PURE_FUNCTION
+    value: "PURE_FUNCTION"
+    description: "No side effects. Returns a value. No external dependencies."
+    trigger_words: [add, calculate, compute, convert, format, parse]
+
+  - name: PREDICATE
+    value: "PREDICATE"
+    description: "Returns boolean. Tests a condition. Named with is/has/can/should."
+    trigger_words: [check, validate, verify, is, has]
+
+  - name: TRANSFORMER
+    value: "TRANSFORMER"
+    description: "Maps one data structure to another. Pure. Explicit input/output types."
+    trigger_words: [transform, map, normalize, serialize]
+
+  - name: AGGREGATOR
+    value: "AGGREGATOR"
+    description: "Reduces a collection to a scalar."
+    trigger_words: [sum, count, find, filter, group, aggregate]
+
+  - name: SIDE_EFFECT_OP
+    value: "SIDE_EFFECT_OP"
+    description: "Mutates state, writes to I/O, network calls. Returns void or status."
+    trigger_words: [save, delete, send, update, write]
+
+  - name: CLASS_METHOD
+    value: "CLASS_METHOD"
+    description: "Belongs to a class. Has implicit self/this."
+    trigger_words: [method, "on", "for the class", inside, member]
+
+  - name: ASYNC_OPERATION
+    value: "ASYNC_OPERATION"
+    description: "I/O-bound, network, or concurrent. Always async/await pattern."
+    trigger_words: [fetch, await, concurrent, stream, poll]
+
+constraints:
+  - "Exactly 7 values — no additions without running full regression suite"
+  - "Each value string matches the enum member name exactly"
+  - "Extends Python Enum — values are strings, not ints"
+
+tests:
+  - name: test_all_types_present
+    assert: "len(CanonicalType) == 7"
+  - name: test_values_are_strings
+    assert: "all(isinstance(t.value, str) for t in CanonicalType)"
+  - name: test_value_matches_name
+    assert: "all(t.value == t.name for t in CanonicalType)"

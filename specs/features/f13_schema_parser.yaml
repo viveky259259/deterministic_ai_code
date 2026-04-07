@@ -1,0 +1,23 @@
+spec: feature
+id: F-13
+name: Schema parser
+version: "1.0.0"
+priority: P0
+category: VALIDATION
+
+description: >
+  Validates and parses raw Claude API output into typed ParsedSections.
+  Returns None on failure to trigger retry. See component spec for details.
+
+references:
+  component_spec: "specs/components/schema_parser.yaml"
+  section_grammar: "Section 14 of complete_prompt.md"
+
+components_involved:
+  - SchemaParser
+
+acceptance_criteria:
+  - test: "Valid output → ParsedSections with all fields"
+  - test: "Missing section → None → triggers retry"
+  - test: "Implementation fences stripped before storage"
+  - test: "Import in implementation → None → triggers retry"

@@ -1,0 +1,26 @@
+spec: feature
+id: F-19
+name: New intent type protocol
+version: "1.0.0"
+priority: P1
+category: EXTENSION
+
+description: >
+  5-step protocol for adding a new canonical intent type to the system.
+
+protocol_steps:
+  1: "Add enum value to CanonicalType"
+  2: "Add classification rules to CanonicalClassifier"
+  3: "Add signature template to TemplateBinder"
+  4: "Add ≥2 ground-truth few-shot examples to SYSTEM_PROMPT"
+  5: "Run full determinism regression suite before merging"
+
+components_involved:
+  - CanonicalType (enum)
+  - CanonicalClassifier (rules)
+  - TemplateBinder (template)
+  - SYSTEM_PROMPT (examples)
+
+acceptance_criteria:
+  - test: "New type added following all 5 steps → passes regression"
+  - test: "Skipping step 5 → merge blocked by CI"

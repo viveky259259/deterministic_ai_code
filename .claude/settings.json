@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(pip:*)",
+      "Bash(pytest:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch:*)",
+      "Bash(ls:*)",
+      "Read",
+      "Glob",
+      "Grep"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "command": "if command -v black >/dev/null 2>&1; then black --quiet $CLAUDE_FILE_PATH 2>/dev/null; fi"
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "command": "echo \"$CLAUDE_TOOL_INPUT\" | grep -qE '(rm -rf|drop table|truncate|--force|--hard)' && echo 'BLOCK: Destructive command detected. Confirm with user first.' && exit 1 || exit 0"
+      }
+    ]
+  }
+}

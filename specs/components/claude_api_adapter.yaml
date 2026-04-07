@@ -1,0 +1,98 @@
+spec: component
+name: ClaudeAPIAdapter
+version: "1.0.0"
+layer: L4
+module: src.core.claude_api_adapter
+
+description: >
+  Calls the Claude API with locked configuration. Temperature is ALWAYS 0.
+  Model version is pinned. No runtime overrides allowed. Returns raw
+  text output for SchemaParser to validate.
+
+input:
+  type: BoundPrompt
+
+output:
+  type: str
+  description: "Raw text response from Claude API"
+
+dependencies:
+  external: [anthropic]
+  contracts: [BoundPrompt]
+
+locked_config:
+  model: "claude-sonnet-4-20250514"
+  temperature: 0
+  max_tokens: 2048
+
+forbidden:
+  - "top_p, top_k, presence_penalty, frequency_penalty"
+  - "Streaming (SchemaParser requires complete output)"
+  - "Caching with modified system prompts"
+  - "Model string containing 'latest' or 'preview'"
+
+methods:
+  - name: __init__
+    signature: "def __init__(self, api_key: str)"
+    description: "Initialize Anthropic client with API key"
+    constraints:
+      - "Assert temperature == 0 at construction time"
+      - "Assert model string does not contain 'latest' or 'preview'"
+
+  - name: call
+    signature: "def call(self, bound_prompt: BoundPrompt) -> str"
+    description: "Make a single Claude API call and return raw text"
+    steps:
+      - "Build messages payload from BoundPrompt"
+      - "Call client.messages.create with locked config"
+      - "Log: model, temperature, max_tokens, system_prompt_hash, user_prompt"
+      - "Log: content_hash, finish_reason, token_usage, latency_ms"
+      - "Return response.content[0].text"
+
+observability:
+  request_log:
+    - model
+    - temperature
+    - max_tokens
+    - system_prompt_hash
+    - user_prompt
+    - trace_id
+    - span_id
+  response_log:
+    - content_hash
+    - finish_reason
+    - tokens_in
+    - tokens_out
+    - latency_ms
+    - attempt_number
+    - trace_id
+    - span_id
+
+invariants:
+  - "temperature=0 on EVERY call — no exceptions"
+  - "Model version is pinned — never changes at runtime"
+  - "No streaming — complete response required for schema parsing"
+  - "Every call is logged with full request/response payload"
+
+acceptance_tests:
+  - name: test_temperature_is_zero
+    assert: "All API calls use temperature=0"
+
+  - name: test_model_is_pinned
+    assert: "model == 'claude-sonnet-4-20250514'"
+
+  - name: test_no_latest_in_model
+    assert: "'latest' not in model and 'preview' not in model"
+
+  - name: test_constructor_rejects_nonzero_temperature
+    input: {temperature: 0.5}
+    assert: "raises AssertionError"
+
+  - name: test_call_returns_string
+    assert: "isinstance(result, str)"
+
+  - name: test_call_logs_request
+    assert: "Log entry contains model, temperature, system_prompt_hash"
+
+  - name: test_call_logs_response
+    assert: "Log entry contains content_hash, latency_ms, tokens"

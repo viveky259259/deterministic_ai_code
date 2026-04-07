@@ -1,0 +1,32 @@
+spec: contract
+name: Confidence
+version: "1.0.0"
+type: enum
+module: src.core.contracts
+
+description: >
+  Classification confidence level. Determines whether the pipeline
+  proceeds to generation (HIGH) or halts with an ambiguity block (MEDIUM/LOW).
+
+values:
+  - name: HIGH
+    value: "HIGH"
+    description: "Exactly one canonical type matches. Pipeline proceeds."
+
+  - name: MEDIUM
+    value: "MEDIUM"
+    description: "Two types could match. Pipeline halts, returns AmbiguityBlock."
+
+  - name: LOW
+    value: "LOW"
+    description: "No type matches or verb is unrecognised. Pipeline halts."
+
+constraints:
+  - "Only HIGH allows pipeline to proceed past AmbiguityGate"
+  - "MEDIUM and LOW both produce AmbiguityBlock — they differ only in reason"
+
+tests:
+  - name: test_all_levels_present
+    assert: "len(Confidence) == 3"
+  - name: test_high_is_only_passing
+    assert: "Confidence.HIGH.value == 'HIGH'"

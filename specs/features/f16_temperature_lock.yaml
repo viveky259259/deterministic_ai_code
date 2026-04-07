@@ -1,0 +1,23 @@
+spec: feature
+id: F-16
+name: Temperature lock
+version: "1.0.0"
+priority: P0
+category: DETERMINISM
+
+description: >
+  All LLM calls use temperature=0. Model string is pinned, never contains
+  'latest' or 'preview'. Non-zero temperature at construction → AssertionError.
+
+locked_values:
+  MODEL: "claude-sonnet-4-20250514"
+  TEMPERATURE: 0
+
+components_involved:
+  - ClaudeAPIAdapter
+
+acceptance_criteria:
+  - test: "All API calls use temperature=0"
+  - test: "MODEL string does not contain 'latest' or 'preview'"
+  - test: "Constructing adapter with temperature != 0 → AssertionError"
+  - test: "Model string is a constant, not a variable"
